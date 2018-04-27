@@ -75,12 +75,24 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
           JavaFileType.INSTANCE,
           getClassName(targetClass));
       PsiClass builderClass = psiFile.getClasses()[0];
-      annotate(project, moduleOf(targetClass), builderClass, JsonIgnoreProperties.class, Collections.singletonMap("ignoreUnknown", "true"), null);
+      annotateBuilderClass(project, targetClass, builderClass);
       targetClass.add(builderClass);
     } else {
+      Optional<PsiClass> builderClass = Arrays.stream(targetClass.getInnerClasses())
+          .filter(innerClass -> innerClass.getName().equals("Builder"))
+          .findFirst();
+      annotateBuilderClass(project, targetClass, builderClass.get());
       info("Skipped", String.format("Did not generate Builder class %s.Builder as it already exists.",
           targetClass.getQualifiedName()));
     }
+  }
+
+  private void annotateBuilderClass(Project project, PsiClass targetClass, PsiClass builderClass) {
+    annotate(project, moduleOf(targetClass),
+        builderClass,
+        JsonIgnoreProperties.class,
+        Collections.singletonMap("ignoreUnknown", "true"),
+        null);
   }
 
   private Module moduleOf(PsiClass targetClass) {
