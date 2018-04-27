@@ -27,12 +27,16 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
   }
 
   private void annotate(Project project, PsiClass psiClass, Class annotationClass) {
-    PsiModifierList modifierList = psiClass.getModifierList();
-    String annotationText = String.format("@%s", annotationClass.getName());
-    PsiAnnotation psiAnnotation = JavaPsiFacade.getInstance(project)
-        .getElementFactory()
-        .createAnnotationFromText(annotationText, psiClass);
-    modifierList.addAfter(psiAnnotation, null);
-    JavaCodeStyleManager.getInstance(project).shortenClassReferences(psiClass);
+    boolean annotationNotPresent = Arrays.stream(psiClass.getAnnotations())
+        .noneMatch(annotation -> annotation.getQualifiedName().equals(annotationClass.getCanonicalName()));
+    if (annotationNotPresent) {
+      PsiModifierList modifierList = psiClass.getModifierList();
+      String annotationText = String.format("@%s", annotationClass.getName());
+      PsiAnnotation psiAnnotation = JavaPsiFacade.getInstance(project)
+          .getElementFactory()
+          .createAnnotationFromText(annotationText, psiClass);
+      modifierList.addAfter(psiAnnotation, null);
+      JavaCodeStyleManager.getInstance(project).shortenClassReferences(psiClass);
+    }
   }
 }
