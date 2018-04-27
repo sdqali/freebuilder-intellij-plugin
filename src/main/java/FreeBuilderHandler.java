@@ -20,6 +20,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class FreeBuilderHandler implements CodeInsightActionHandler {
+
+  private PsiElementFactory elementFactory;
+
   @Override
   public void invoke(@NotNull Project project, @NotNull Editor editor, @NotNull PsiFile file) {
     if(file.isWritable()) {
@@ -92,20 +95,30 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
         .noneMatch(annotation -> annotation.getQualifiedName().equals(annotationClass.getCanonicalName()));
     if (annotationNotPresent) {
       PsiModifierList modifierList = psiClass.getModifierList();
-      StringBuilder stringBuilder = new StringBuilder(String.format("@%s", annotationClass.getName()));
-      if(!attributes.isEmpty()) {
-        stringBuilder.append("(");
-        stringBuilder.append(attributes.entrySet().stream()
-            .map(entry -> String.format("%s = %s", entry.getKey(), entry.getValue()))
-            .collect(Collectors.joining(", ")));
-        stringBuilder.append(")");
-      }
-     PsiElementFactory elementFactory = JavaPsiFacade.getInstance(project)
-          .getElementFactory();
-      PsiAnnotation psiAnnotation = elementFactory
-          .createAnnotationFromText(stringBuilder.toString(), psiClass);
+      PsiAnnotation psiAnnotation = getElementFactory(project)
+          .createAnnotationFromText(buildAnnotationText(annotationClass, attributes), psiClass);
       modifierList.addAfter(psiAnnotation, anchor);
       JavaCodeStyleManager.getInstance(project).shortenClassReferences(psiClass);
     }
+  }
+
+  @NotNull
+  private String buildAnnotationText(Class annotationClass, Map<String, String> attributes) {
+    StringBuilder stringBuilder = new StringBuilder(String.format("@%s", annotationClass.getName()));
+    if(!attributes.isEmpty()) {
+      stringBuilder.append("(");
+      stringBuilder.append(attributes.entrySet().stream()
+          .map(entry -> String.format("%s = %s", entry.getKey(), entry.getValue()))
+          .collect(Collectors.joining(", ")));
+      stringBuilder.append(")");
+    }
+    return stringBuilder.toString();
+  }
+
+  private PsiElementFactory getElementFactory(Project project) {
+    if (elementFactory == null) {
+      elementFactory = JavaPsiFacade.getInstance(project).getElementFactory();
+    }
+    return elementFactory;
   }
 }
