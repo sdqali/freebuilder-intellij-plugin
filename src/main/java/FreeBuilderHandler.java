@@ -5,6 +5,7 @@ import com.intellij.openapi.command.undo.UndoUtil;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
+import com.intellij.psi.codeStyle.JavaCodeStyleManager;
 import org.inferred.freebuilder.FreeBuilder;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,10 +28,11 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
 
   private void annotate(Project project, PsiClass psiClass, Class annotationClass) {
     PsiModifierList modifierList = psiClass.getModifierList();
-    String annotationText = String.format("@%s", annotationClass.getCanonicalName());
+    String annotationText = String.format("@%s", annotationClass.getName());
     PsiAnnotation psiAnnotation = JavaPsiFacade.getInstance(project)
         .getElementFactory()
         .createAnnotationFromText(annotationText, psiClass);
     modifierList.addAfter(psiAnnotation, null);
+    JavaCodeStyleManager.getInstance(project).shortenClassReferences(psiClass);
   }
 }
