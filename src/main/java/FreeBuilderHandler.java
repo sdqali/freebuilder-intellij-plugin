@@ -58,12 +58,7 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
   }
 
   private void rebuild(Project project) {
-    CompilerManager.getInstance(project).make((aborted, errors, warnings, compileContext) -> {
-      System.out.println(aborted);
-      System.out.println(errors);
-      System.out.println(warnings);
-      System.out.println(compileContext);
-    });
+    CompilerManager.getInstance(project).make((aborted, errors, warnings, compileContext) -> {});
   }
 
   private void addBuilderClass(Project project, PsiClass targetClass) {
