@@ -2,6 +2,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.intellij.codeInsight.CodeInsightActionHandler;
 import com.intellij.ide.highlighter.JavaFileType;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
 import com.intellij.openapi.command.undo.UndoUtil;
 import com.intellij.openapi.compiler.CompilerManager;
 import com.intellij.openapi.editor.Editor;
@@ -26,7 +29,7 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
 
   @Override
   public void invoke(@NotNull Project project, @NotNull Editor editor, @NotNull PsiFile file) {
-    if(file.isWritable()) {
+    if (file.isWritable()) {
       PsiJavaFile psiJavaFile = (PsiJavaFile) file;
       String fileNameWithoutExtension = psiJavaFile.getName().replace(".java", "");
       Arrays.stream(psiJavaFile.getClasses())
@@ -38,7 +41,7 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
             rebuild(project);
             UndoUtil.markPsiFileForUndo(file);
           });
-   }
+    }
   }
 
   private void addJacksonAnnotation(Project project, PsiClass targetClass) {
@@ -74,6 +77,9 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
       PsiClass builderClass = psiFile.getClasses()[0];
       annotate(project, moduleOf(targetClass), builderClass, JsonIgnoreProperties.class, Collections.singletonMap("ignoreUnknown", "true"), null);
       targetClass.add(builderClass);
+    } else {
+      info("Skipped", String.format("Did not generate Builder class %s.Builder as it already exists.",
+          targetClass.getQualifiedName()));
     }
   }
 
@@ -93,18 +99,34 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
     }
   }
 
-  private void annotate(Project project, Module module, PsiClass psiClass,
+  private void annotate(Project project, Module module, PsiClass targetClass,
                         Class annotationClass, Map<String, String> attributes, PsiAnnotation anchor) {
     if (detectClassInPath(project, module, annotationClass)) {
-      if (notAlreadyAnnotated(psiClass, annotationClass)) {
-        PsiModifierList modifierList = psiClass.getModifierList();
+      if (notAlreadyAnnotated(targetClass, annotationClass)) {
+        PsiModifierList modifierList = targetClass.getModifierList();
         PsiAnnotation psiAnnotation = getElementFactory(project)
-            .createAnnotationFromText(buildAnnotationText(annotationClass, attributes), psiClass);
+            .createAnnotationFromText(buildAnnotationText(annotationClass, attributes), targetClass);
         modifierList.addAfter(psiAnnotation, anchor);
-        JavaCodeStyleManager.getInstance(project).shortenClassReferences(psiClass);
+        JavaCodeStyleManager.getInstance(project).shortenClassReferences(targetClass);
+      } else {
+        info("Skipped", String.format("Class %s is already annotated with %s",
+            targetClass.getQualifiedName(), annotationClass.getCanonicalName()));
       }
+    } else {
+      warn("Skipped", String.format("Skipping %s annotation as it is not found in classpath",
+          annotationClass.getCanonicalName()));
     }
- }
+  }
+
+  private void info(String title, String message) {
+    Notifications.Bus.notify(new Notification("FreeBuilder Plugin", title,
+        message, NotificationType.INFORMATION));
+  }
+
+  private void warn(String title, String message) {
+    Notifications.Bus.notify(new Notification("FreeBuilder Plugin", title,
+        message, NotificationType.WARNING));
+  }
 
   private boolean notAlreadyAnnotated(PsiClass targetClass, Class annotationClass) {
     return !possibleExistingAnnotation(targetClass, annotationClass).isPresent();
@@ -120,7 +142,7 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
   @NotNull
   private String buildAnnotationText(Class annotationClass, Map<String, String> attributes) {
     StringBuilder stringBuilder = new StringBuilder(String.format("@%s", annotationClass.getName()));
-    if(!attributes.isEmpty()) {
+    if (!attributes.isEmpty()) {
       stringBuilder.append("(");
       stringBuilder.append(attributes.entrySet().stream()
           .map(entry -> String.format("%s = %s", entry.getKey(), entry.getValue()))
