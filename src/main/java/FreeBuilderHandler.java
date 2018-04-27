@@ -1,9 +1,12 @@
 import com.intellij.codeInsight.AnnotationUtil;
 import com.intellij.codeInsight.CodeInsightActionHandler;
 import com.intellij.codeInsight.generation.OverrideImplementUtil;
+import com.intellij.compiler.server.BuildManager;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.openapi.command.undo.UndoUtil;
+import com.intellij.openapi.compiler.CompilerManager;
 import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.JavaCodeStyleManager;
@@ -24,9 +27,19 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
           .forEach(psiClass -> {
             annotate(project, psiClass, FreeBuilder.class);
             addBuilderClass(project, psiClass);
+            rebuild(project);
             UndoUtil.markPsiFileForUndo(file);
           });
    }
+  }
+
+  private void rebuild(Project project) {
+    CompilerManager.getInstance(project).make((aborted, errors, warnings, compileContext) -> {
+      System.out.println(aborted);
+      System.out.println(errors);
+      System.out.println(warnings);
+      System.out.println(compileContext);
+    });
   }
 
   private void addBuilderClass(Project project, PsiClass psiClass) {
