@@ -8,17 +8,21 @@ import com.intellij.psi.*;
 import org.inferred.freebuilder.FreeBuilder;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
+
 public class FreeBuilderHandler implements CodeInsightActionHandler {
   @Override
   public void invoke(@NotNull Project project, @NotNull Editor editor, @NotNull PsiFile file) {
     if(file.isWritable()) {
-      PsiClass psiClass = OverrideImplementUtil.getContextClass(project, editor, file, false);
-      if(psiClass != null) {
-        annotate(project, psiClass, FreeBuilder.class);
-
-        UndoUtil.markPsiFileForUndo(file);
-      }
-    }
+      PsiJavaFile psiJavaFile = (PsiJavaFile) file;
+      String fileNameWithoutExtension = psiJavaFile.getName().replace(".java", "");
+      Arrays.stream(psiJavaFile.getClasses())
+          .filter(psiClass -> psiClass.getName().equals(fileNameWithoutExtension))
+          .forEach(psiClass -> {
+            annotate(project, psiClass, FreeBuilder.class);
+            UndoUtil.markPsiFileForUndo(file);
+          });
+   }
   }
 
   private void annotate(Project project, PsiClass psiClass, Class annotationClass) {

@@ -8,6 +8,10 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiJavaFile;
 
 public class FreeBuilderAction extends BaseGenerateAction {
   public FreeBuilderAction() {
@@ -22,6 +26,7 @@ public class FreeBuilderAction extends BaseGenerateAction {
   public void update(AnActionEvent event) {
     final Project project = event.getProject();
     final Editor editor = event.getData(CommonDataKeys.EDITOR);
-    event.getPresentation().setVisible(project != null && editor != null);
+    PsiFile psiFile = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument());
+    event.getPresentation().setVisible(project != null && editor != null && psiFile instanceof PsiJavaFile);
   }
 }
