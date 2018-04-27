@@ -1,8 +1,8 @@
 <idea-plugin>
     <id>in.sdqali.intellij.freebuilder-plugin</id>
     <name>FreeBuilder Plugin</name>
-    <version>0.0.1</version>
-    <vendor email="dummy" url="dummy">dummy</vendor>
+    <version>1.0.0</version>
+    <vendor email="sdqali@sdqali.in" url="https://sdqali.in/">dummy</vendor>
 
     <description><![CDATA[
       Sample plugin.<br>
@@ -13,7 +13,7 @@
     ]]>
     </change-notes>
 
-    <idea-version since-build="173"/>
+    <idea-version since-build="173.0"/>
     <extensions defaultExtensionNs="com.intellij">
     </extensions>
 
