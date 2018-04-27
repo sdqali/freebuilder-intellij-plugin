@@ -1,0 +1,28 @@
+<idea-plugin>
+    <id>in.sdqali.intellij.freebuilder-plugin</id>
+    <name>FreeBuilder Plugin</name>
+    <version>0.0.1</version>
+    <vendor email="dummy" url="dummy">dummy</vendor>
+
+    <description><![CDATA[
+      Sample plugin.<br>
+    ]]></description>
+
+    <change-notes><![CDATA[
+      Release 0.0.1: Initial release.<br>
+    ]]>
+    </change-notes>
+
+    <idea-version since-build="162"/>
+    <extensions defaultExtensionNs="com.intellij">
+    </extensions>
+
+    <actions>
+        <group id="FreeBuilderPlugin.DecorateMenu" text="Apply FreeBuilder" description="Menu to apply FreeBuilder">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="FreeBuilderPlugin.Action" class="HelloAction"
+                    text="Apply FreeBuilder" description="Applies FreeBuilder"/>
+        </group>
+    </actions>
+
+</idea-plugin>
