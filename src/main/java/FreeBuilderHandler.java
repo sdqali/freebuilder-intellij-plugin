@@ -1,11 +1,13 @@
 import com.intellij.codeInsight.AnnotationUtil;
 import com.intellij.codeInsight.CodeInsightActionHandler;
 import com.intellij.codeInsight.generation.OverrideImplementUtil;
+import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.openapi.command.undo.UndoUtil;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.JavaCodeStyleManager;
+import com.intellij.psi.impl.source.PsiClassImpl;
 import org.inferred.freebuilder.FreeBuilder;
 import org.jetbrains.annotations.NotNull;
 
@@ -21,9 +23,35 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
           .filter(psiClass -> psiClass.getName().equals(fileNameWithoutExtension))
           .forEach(psiClass -> {
             annotate(project, psiClass, FreeBuilder.class);
+            addBuilderClass(project, psiClass);
             UndoUtil.markPsiFileForUndo(file);
           });
    }
+  }
+
+  private void addBuilderClass(Project project, PsiClass psiClass) {
+    boolean builderClassDoesNotExist = Arrays.stream(psiClass.getInnerClasses())
+        .noneMatch(innerClass -> innerClass.getSuperClass().getName().equals(builderName(psiClass)));
+
+    if (builderClassDoesNotExist) {
+      PsiJavaFile psiFile = (PsiJavaFile) PsiFileFactory.getInstance(project).createFileFromText("Builder.java",
+          JavaFileType.INSTANCE,
+          getClassName(psiClass));
+      PsiClass builderClass = psiFile.getClasses()[0];
+      psiClass.add(builderClass);
+    }
+  }
+
+  private String builderName(PsiClass psiClass) {
+    return String.format("%s_Builder", psiClass.getName());
+  }
+
+  private String getClassName(PsiClass psiClass) {
+    if (psiClass.isInterface()) {
+      return String.format("class Builder extends %s {}", builderName(psiClass));
+    } else {
+      return String.format("public static class Builder extends %s {}", builderName(psiClass));
+    }
   }
 
   private void annotate(Project project, PsiClass psiClass, Class annotationClass) {
