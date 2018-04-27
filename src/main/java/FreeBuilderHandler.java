@@ -42,18 +42,16 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
   }
 
   private void addJacksonAnnotation(Project project, PsiClass psiClass) {
-    Module moduleForPsiElement = ModuleUtil.findModuleForPsiElement(psiClass);
-    PsiClass jacksonAnnotationClass = JavaPsiFacade.getInstance(project)
-        .findClass(JsonDeserialize.class.getCanonicalName(),
-            GlobalSearchScope.moduleRuntimeScope(moduleForPsiElement, false));
-    if (jacksonAnnotationClass != null) {
-      Optional<PsiAnnotation> annotation = Arrays.stream(psiClass.getAnnotations())
-          .filter(psiAnnotation -> psiAnnotation.getQualifiedName().equals(FreeBuilder.class.getCanonicalName()))
-          .findFirst();
-      annotate(project, psiClass, JsonDeserialize.class,
-          Collections.singletonMap("builder", String.format("%s.Builder.class", psiClass.getName())),
-          annotation.orElse(null));
-    }
+    Optional<PsiAnnotation> anchor = possibleExistingAnnotation(psiClass, FreeBuilder.class);
+    annotate(project, psiClass, JsonDeserialize.class,
+        Collections.singletonMap("builder", String.format("%s.Builder.class", psiClass.getName())),
+        anchor.orElse(null));
+  }
+
+  private Optional<PsiAnnotation> possibleExistingAnnotation(PsiClass targetClass, Class annotationClass) {
+    return Arrays.stream(targetClass.getAnnotations())
+        .filter(psiAnnotation -> psiAnnotation.getQualifiedName().equals(annotationClass.getCanonicalName()))
+        .findFirst();
   }
 
   private void rebuild(Project project) {
@@ -65,17 +63,17 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
     });
   }
 
-  private void addBuilderClass(Project project, PsiClass psiClass) {
-    boolean builderClassDoesNotExist = Arrays.stream(psiClass.getInnerClasses())
+  private void addBuilderClass(Project project, PsiClass targetClass) {
+    boolean builderClassDoesNotExist = Arrays.stream(targetClass.getInnerClasses())
         .noneMatch(innerClass -> innerClass.getName().equals("Builder"));
 
     if (builderClassDoesNotExist) {
       PsiJavaFile psiFile = (PsiJavaFile) PsiFileFactory.getInstance(project).createFileFromText("Builder.java",
           JavaFileType.INSTANCE,
-          getClassName(psiClass));
+          getClassName(targetClass));
       PsiClass builderClass = psiFile.getClasses()[0];
       annotate(project, builderClass, JsonIgnoreProperties.class, Collections.singletonMap("ignoreUnknown", "true"), null);
-      psiClass.add(builderClass);
+      targetClass.add(builderClass);
     }
   }
 
@@ -92,16 +90,28 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
   }
 
   private void annotate(Project project, PsiClass psiClass,
-                                 Class annotationClass, Map<String, String> attributes, PsiAnnotation anchor) {
-    boolean annotationNotPresent = Arrays.stream(psiClass.getAnnotations())
-        .noneMatch(annotation -> annotation.getQualifiedName().equals(annotationClass.getCanonicalName()));
-    if (annotationNotPresent) {
-      PsiModifierList modifierList = psiClass.getModifierList();
-      PsiAnnotation psiAnnotation = getElementFactory(project)
-          .createAnnotationFromText(buildAnnotationText(annotationClass, attributes), psiClass);
-      modifierList.addAfter(psiAnnotation, anchor);
-      JavaCodeStyleManager.getInstance(project).shortenClassReferences(psiClass);
+                        Class annotationClass, Map<String, String> attributes, PsiAnnotation anchor) {
+    if (detectClassInPath(project, psiClass, annotationClass)) {
+      if (notAlreadyAnnotated(psiClass, annotationClass)) {
+        PsiModifierList modifierList = psiClass.getModifierList();
+        PsiAnnotation psiAnnotation = getElementFactory(project)
+            .createAnnotationFromText(buildAnnotationText(annotationClass, attributes), psiClass);
+        modifierList.addAfter(psiAnnotation, anchor);
+        JavaCodeStyleManager.getInstance(project).shortenClassReferences(psiClass);
+      }
     }
+ }
+
+  private boolean notAlreadyAnnotated(PsiClass targetClass, Class annotationClass) {
+    return !possibleExistingAnnotation(targetClass, annotationClass).isPresent();
+  }
+
+  private boolean detectClassInPath(Project project, PsiClass targetClass, Class annotationClass) {
+    Module module = ModuleUtil.findModuleForPsiElement(targetClass);
+    PsiClass jacksonAnnotationClass = JavaPsiFacade.getInstance(project)
+        .findClass(annotationClass.getCanonicalName(),
+            GlobalSearchScope.moduleRuntimeScope(module, false));
+    return null != jacksonAnnotationClass;
   }
 
   @NotNull
