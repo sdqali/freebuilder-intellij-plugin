@@ -31,20 +31,20 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
       String fileNameWithoutExtension = psiJavaFile.getName().replace(".java", "");
       Arrays.stream(psiJavaFile.getClasses())
           .filter(psiClass -> psiClass.getName().equals(fileNameWithoutExtension))
-          .forEach(psiClass -> {
-            annotate(project, psiClass, FreeBuilder.class, Collections.emptyMap(), null);
-            addBuilderClass(project, psiClass);
-            addJacksonAnnotation(project, psiClass);
+          .forEach(targetClass -> {
+            annotate(project, moduleOf(targetClass), targetClass, FreeBuilder.class, Collections.emptyMap(), null);
+            addBuilderClass(project, targetClass);
+            addJacksonAnnotation(project, targetClass);
             rebuild(project);
             UndoUtil.markPsiFileForUndo(file);
           });
    }
   }
 
-  private void addJacksonAnnotation(Project project, PsiClass psiClass) {
-    Optional<PsiAnnotation> anchor = possibleExistingAnnotation(psiClass, FreeBuilder.class);
-    annotate(project, psiClass, JsonDeserialize.class,
-        Collections.singletonMap("builder", String.format("%s.Builder.class", psiClass.getName())),
+  private void addJacksonAnnotation(Project project, PsiClass targetClass) {
+    Optional<PsiAnnotation> anchor = possibleExistingAnnotation(targetClass, FreeBuilder.class);
+    annotate(project, moduleOf(targetClass), targetClass, JsonDeserialize.class,
+        Collections.singletonMap("builder", String.format("%s.Builder.class", targetClass.getName())),
         anchor.orElse(null));
   }
 
@@ -72,9 +72,13 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
           JavaFileType.INSTANCE,
           getClassName(targetClass));
       PsiClass builderClass = psiFile.getClasses()[0];
-      annotate(project, builderClass, JsonIgnoreProperties.class, Collections.singletonMap("ignoreUnknown", "true"), null);
+      annotate(project, moduleOf(targetClass), builderClass, JsonIgnoreProperties.class, Collections.singletonMap("ignoreUnknown", "true"), null);
       targetClass.add(builderClass);
     }
+  }
+
+  private Module moduleOf(PsiClass targetClass) {
+    return ModuleUtil.findModuleForPsiElement(targetClass);
   }
 
   private String builderName(PsiClass psiClass) {
@@ -89,9 +93,9 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
     }
   }
 
-  private void annotate(Project project, PsiClass psiClass,
+  private void annotate(Project project, Module module, PsiClass psiClass,
                         Class annotationClass, Map<String, String> attributes, PsiAnnotation anchor) {
-    if (detectClassInPath(project, psiClass, annotationClass)) {
+    if (detectClassInPath(project, module, annotationClass)) {
       if (notAlreadyAnnotated(psiClass, annotationClass)) {
         PsiModifierList modifierList = psiClass.getModifierList();
         PsiAnnotation psiAnnotation = getElementFactory(project)
@@ -106,8 +110,7 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
     return !possibleExistingAnnotation(targetClass, annotationClass).isPresent();
   }
 
-  private boolean detectClassInPath(Project project, PsiClass targetClass, Class annotationClass) {
-    Module module = ModuleUtil.findModuleForPsiElement(targetClass);
+  private boolean detectClassInPath(Project project, Module module, Class annotationClass) {
     PsiClass jacksonAnnotationClass = JavaPsiFacade.getInstance(project)
         .findClass(annotationClass.getCanonicalName(),
             GlobalSearchScope.moduleRuntimeScope(module, false));
