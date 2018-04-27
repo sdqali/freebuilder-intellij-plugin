@@ -1,3 +1,4 @@
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.intellij.codeInsight.CodeInsightActionHandler;
 import com.intellij.ide.highlighter.JavaFileType;
@@ -73,6 +74,7 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
           JavaFileType.INSTANCE,
           getClassName(psiClass));
       PsiClass builderClass = psiFile.getClasses()[0];
+      annotate(project, builderClass, JsonIgnoreProperties.class, Collections.singletonMap("ignoreUnknown", "true"), null);
       psiClass.add(builderClass);
     }
   }
