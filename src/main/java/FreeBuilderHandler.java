@@ -1,0 +1,32 @@
+import com.intellij.codeInsight.AnnotationUtil;
+import com.intellij.codeInsight.CodeInsightActionHandler;
+import com.intellij.codeInsight.generation.OverrideImplementUtil;
+import com.intellij.openapi.command.undo.UndoUtil;
+import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.project.Project;
+import com.intellij.psi.*;
+import org.inferred.freebuilder.FreeBuilder;
+import org.jetbrains.annotations.NotNull;
+
+public class FreeBuilderHandler implements CodeInsightActionHandler {
+  @Override
+  public void invoke(@NotNull Project project, @NotNull Editor editor, @NotNull PsiFile file) {
+    if(file.isWritable()) {
+      PsiClass psiClass = OverrideImplementUtil.getContextClass(project, editor, file, false);
+      if(psiClass != null) {
+        annotate(project, psiClass, FreeBuilder.class);
+
+        UndoUtil.markPsiFileForUndo(file);
+      }
+    }
+  }
+
+  private void annotate(Project project, PsiClass psiClass, Class annotationClass) {
+    PsiModifierList modifierList = psiClass.getModifierList();
+    String annotationText = String.format("@%s", annotationClass.getCanonicalName());
+    PsiAnnotation psiAnnotation = JavaPsiFacade.getInstance(project)
+        .getElementFactory()
+        .createAnnotationFromText(annotationText, psiClass);
+    modifierList.addAfter(psiAnnotation, null);
+  }
+}
