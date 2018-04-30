@@ -20,7 +20,7 @@
     <actions>
         <group id="FreeBuilderPlugin.DecorateMenu" text="Apply FreeBuilder" description="Menu to apply FreeBuilder">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <action id="FreeBuilderPlugin.Action" class="FreeBuilderAction"
+            <action id="FreeBuilderPlugin.Action" class="in.sdqali.intellij.freebuilder.FreeBuilderAction"
                     text="Apply FreeBuilder" description="Applies FreeBuilder"/>
         </group>
     </actions>

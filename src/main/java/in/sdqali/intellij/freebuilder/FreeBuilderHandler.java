@@ -1,3 +1,5 @@
+package in.sdqali.intellij.freebuilder;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.intellij.codeInsight.CodeInsightActionHandler;
