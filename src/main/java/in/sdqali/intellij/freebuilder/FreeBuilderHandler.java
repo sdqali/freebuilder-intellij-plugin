@@ -51,25 +51,13 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
     annotator.annotate(moduleOf(targetClass), targetClass, FreeBuilder.class, Collections.emptyMap(), null);
   }
 
-  private void addJacksonAnnotation(PsiClass targetClass) {
-    annotator.annotate(moduleOf(targetClass), targetClass, JsonDeserialize.class,
-        Collections.singletonMap("builder", String.format("%s.Builder.class", targetClass.getName())),
-        possibleExistingAnnotation(targetClass, FreeBuilder.class).orElse(null));
-  }
-
-  private Optional<PsiAnnotation> possibleExistingAnnotation(PsiClass targetClass, Class annotationClass) {
-    return Arrays.stream(targetClass.getAnnotations())
-        .filter(psiAnnotation -> psiAnnotation.getQualifiedName().equals(annotationClass.getCanonicalName()))
-        .findFirst();
-  }
-
   private void addBuilderClass(Project project, PsiClass targetClass) {
     boolean builderClassDoesNotExist = Arrays.stream(targetClass.getInnerClasses())
         .noneMatch(innerClass -> innerClass.getName().equals("Builder"));
 
     if (builderClassDoesNotExist) {
       PsiJavaFile psiFile = (PsiJavaFile) openApiShim.getFileFactory(project)
-          .createFileFromText("Builder.java", JavaFileType.INSTANCE, getClassName(targetClass));
+          .createFileFromText("Builder.java", JavaFileType.INSTANCE, getBuilderClassText(targetClass));
       PsiClass builderClass = psiFile.getClasses()[0];
       annotateBuilderClass(targetClass, builderClass);
       targetClass.add(builderClass);
@@ -81,6 +69,18 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
       notifier.info("Skipped", String.format("Did not generate Builder class %s.Builder as it already exists.",
           targetClass.getQualifiedName()));
     }
+  }
+
+  private void addJacksonAnnotation(PsiClass targetClass) {
+    annotator.annotate(moduleOf(targetClass), targetClass, JsonDeserialize.class,
+        Collections.singletonMap("builder", String.format("%s.Builder.class", targetClass.getName())),
+        possibleExistingAnnotation(targetClass, FreeBuilder.class).orElse(null));
+  }
+
+  private Optional<PsiAnnotation> possibleExistingAnnotation(PsiClass targetClass, Class annotationClass) {
+    return Arrays.stream(targetClass.getAnnotations())
+        .filter(psiAnnotation -> psiAnnotation.getQualifiedName().equals(annotationClass.getCanonicalName()))
+        .findFirst();
   }
 
   private void annotateBuilderClass(PsiClass targetClass, PsiClass builderClass) {
@@ -99,7 +99,7 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
     return String.format("%s_Builder", psiClass.getName());
   }
 
-  private String getClassName(PsiClass psiClass) {
+  private String getBuilderClassText(PsiClass psiClass) {
     if (psiClass.isInterface()) {
       return String.format("class Builder extends %s {}", builderName(psiClass));
     } else {
