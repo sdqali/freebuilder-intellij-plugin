@@ -1,7 +1,5 @@
 package in.sdqali.intellij.freebuilder;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.intellij.codeInsight.CodeInsightActionHandler;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.openapi.editor.Editor;
@@ -12,7 +10,6 @@ import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaFile;
 import in.sdqali.intellij.freebuilder.internal.OpenApiShim;
-import org.inferred.freebuilder.FreeBuilder;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
@@ -20,6 +17,9 @@ import java.util.Collections;
 import java.util.Optional;
 
 public class FreeBuilderHandler implements CodeInsightActionHandler {
+  public static final String FREE_BUILDER = "org.inferred.freebuilder.FreeBuilder";
+  public static final String JSON_DESERIALIZE = "com.fasterxml.jackson.databind.annotation.JsonDeserialize";
+  public static final String JSON_IGNORE_PROPERTIES = "com.fasterxml.jackson.annotation.JsonIgnoreProperties";
   private OpenApiShim openApiShim;
   private Annotator annotator;
   private Notifier notifier;
@@ -48,7 +48,10 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
   }
 
   private void addFreeBuilderAnnotation(PsiClass targetClass) {
-    annotator.annotate(moduleOf(targetClass), targetClass, FreeBuilder.class, Collections.emptyMap(), null);
+    annotator.annotate(moduleOf(targetClass),
+        targetClass,
+        FREE_BUILDER,
+        Collections.emptyMap(), null);
   }
 
   private void addBuilderClass(Project project, PsiClass targetClass) {
@@ -72,21 +75,23 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
   }
 
   private void addJacksonAnnotation(PsiClass targetClass) {
-    annotator.annotate(moduleOf(targetClass), targetClass, JsonDeserialize.class,
+    annotator.annotate(moduleOf(targetClass),
+        targetClass,
+        JSON_DESERIALIZE,
         Collections.singletonMap("builder", String.format("%s.Builder.class", targetClass.getName())),
-        possibleExistingAnnotation(targetClass, FreeBuilder.class).orElse(null));
+        possibleExistingAnnotation(targetClass, FREE_BUILDER).orElse(null));
   }
 
-  private Optional<PsiAnnotation> possibleExistingAnnotation(PsiClass targetClass, Class annotationClass) {
+  private Optional<PsiAnnotation> possibleExistingAnnotation(PsiClass targetClass, String annotationClass) {
     return Arrays.stream(targetClass.getAnnotations())
-        .filter(psiAnnotation -> psiAnnotation.getQualifiedName().equals(annotationClass.getCanonicalName()))
+        .filter(psiAnnotation -> psiAnnotation.getQualifiedName().equals(annotationClass))
         .findFirst();
   }
 
   private void annotateBuilderClass(PsiClass targetClass, PsiClass builderClass) {
     annotator.annotate(moduleOf(targetClass),
         builderClass,
-        JsonIgnoreProperties.class,
+        JSON_IGNORE_PROPERTIES,
         Collections.singletonMap("ignoreUnknown", "true"),
         null);
   }

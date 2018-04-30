@@ -1,7 +1,6 @@
 package in.sdqali.intellij.freebuilder;
 
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiAnnotation;
 import com.intellij.psi.PsiClass;
@@ -26,7 +25,7 @@ public class Annotator {
   }
 
   public void annotate(Module module, PsiClass targetClass,
-                       Class annotationClass, Map<String, String> attributes, PsiAnnotation anchor) {
+                       String annotationClass, Map<String, String> attributes, PsiAnnotation anchor) {
     Project project = module.getProject();
     if (detectClassInPath(module, annotationClass)) {
       if (notAlreadyAnnotated(targetClass, annotationClass)) {
@@ -37,31 +36,31 @@ public class Annotator {
         JavaCodeStyleManager.getInstance(project).shortenClassReferences(targetClass);
       } else {
         notifier.info("Skipped", String.format("Class %s is already annotated with %s",
-            targetClass.getQualifiedName(), annotationClass.getCanonicalName()));
+            targetClass.getQualifiedName(), annotationClass));
       }
     } else notifier.warn("Skipped", String.format("Skipping %s annotation as it is not found in classpath",
-        annotationClass.getCanonicalName()));
+        annotationClass));
   }
 
-  private boolean detectClassInPath(Module module, Class klass) {
+  private boolean detectClassInPath(Module module, String canonicalName) {
     Project project = module.getProject();
     PsiClass psiClass = openApiShim.getFacade(project)
-        .findClass(klass.getCanonicalName(), openApiShim.runTimeScope(module));
+        .findClass(canonicalName, openApiShim.runTimeScope(module));
     return null != psiClass;
   }
 
-  private boolean notAlreadyAnnotated(PsiClass targetClass, Class annotationClass) {
+  private boolean notAlreadyAnnotated(PsiClass targetClass, String annotationClass) {
     return !possibleExistingAnnotation(targetClass, annotationClass).isPresent();
   }
 
-  private Optional<PsiAnnotation> possibleExistingAnnotation(PsiClass targetClass, Class annotationClass) {
+  private Optional<PsiAnnotation> possibleExistingAnnotation(PsiClass targetClass, String annotationClass) {
     return Arrays.stream(targetClass.getAnnotations())
-        .filter(psiAnnotation -> psiAnnotation.getQualifiedName().equals(annotationClass.getCanonicalName()))
+        .filter(psiAnnotation -> psiAnnotation.getQualifiedName().equals(annotationClass))
         .findFirst();
   }
 
-  private String buildAnnotationText(Class annotationClass, Map<String, String> attributes) {
-    StringBuilder stringBuilder = new StringBuilder(String.format("@%s", annotationClass.getName()));
+  private String buildAnnotationText(String annotationClass, Map<String, String> attributes) {
+    StringBuilder stringBuilder = new StringBuilder(String.format("@%s", annotationClass));
     if (!attributes.isEmpty()) {
       stringBuilder.append("(");
       stringBuilder.append(attributes.entrySet().stream()
