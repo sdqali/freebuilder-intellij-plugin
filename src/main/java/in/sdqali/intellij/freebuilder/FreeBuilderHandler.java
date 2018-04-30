@@ -4,30 +4,31 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.intellij.codeInsight.CodeInsightActionHandler;
 import com.intellij.ide.highlighter.JavaFileType;
-import com.intellij.notification.Notification;
-import com.intellij.notification.NotificationType;
-import com.intellij.notification.Notifications;
-import com.intellij.openapi.command.undo.UndoUtil;
-import com.intellij.openapi.compiler.CompilerManager;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.project.Project;
-import com.intellij.psi.*;
-import com.intellij.psi.codeStyle.JavaCodeStyleManager;
-import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.PsiAnnotation;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiJavaFile;
+import in.sdqali.intellij.freebuilder.internal.OpenApiShim;
 import org.inferred.freebuilder.FreeBuilder;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 public class FreeBuilderHandler implements CodeInsightActionHandler {
+  private OpenApiShim openApiShim;
+  private Annotator annotator;
+  private Notifier notifier;
 
-  private PsiElementFactory elementFactory;
+  public FreeBuilderHandler(OpenApiShim openApiShim, Annotator annotator, Notifier notifier) {
+    this.openApiShim = openApiShim;
+    this.annotator = annotator;
+    this.notifier = notifier;
+  }
 
   @Override
   public void invoke(@NotNull Project project, @NotNull Editor editor, @NotNull PsiFile file) {
@@ -37,20 +38,23 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
       Arrays.stream(psiJavaFile.getClasses())
           .filter(psiClass -> psiClass.getName().equals(fileNameWithoutExtension))
           .forEach(targetClass -> {
-            annotate(project, moduleOf(targetClass), targetClass, FreeBuilder.class, Collections.emptyMap(), null);
+            addFreeBuilderAnnotation(targetClass);
             addBuilderClass(project, targetClass);
-            addJacksonAnnotation(project, targetClass);
-            rebuild(project);
-            UndoUtil.markPsiFileForUndo(file);
+            addJacksonAnnotation(targetClass);
+            openApiShim.make(project);
+            openApiShim.markForUndo(file);
           });
     }
   }
 
-  private void addJacksonAnnotation(Project project, PsiClass targetClass) {
-    Optional<PsiAnnotation> anchor = possibleExistingAnnotation(targetClass, FreeBuilder.class);
-    annotate(project, moduleOf(targetClass), targetClass, JsonDeserialize.class,
+  private void addFreeBuilderAnnotation(PsiClass targetClass) {
+    annotator.annotate(moduleOf(targetClass), targetClass, FreeBuilder.class, Collections.emptyMap(), null);
+  }
+
+  private void addJacksonAnnotation(PsiClass targetClass) {
+    annotator.annotate(moduleOf(targetClass), targetClass, JsonDeserialize.class,
         Collections.singletonMap("builder", String.format("%s.Builder.class", targetClass.getName())),
-        anchor.orElse(null));
+        possibleExistingAnnotation(targetClass, FreeBuilder.class).orElse(null));
   }
 
   private Optional<PsiAnnotation> possibleExistingAnnotation(PsiClass targetClass, Class annotationClass) {
@@ -59,33 +63,28 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
         .findFirst();
   }
 
-  private void rebuild(Project project) {
-    CompilerManager.getInstance(project).make((aborted, errors, warnings, compileContext) -> {});
-  }
-
   private void addBuilderClass(Project project, PsiClass targetClass) {
     boolean builderClassDoesNotExist = Arrays.stream(targetClass.getInnerClasses())
         .noneMatch(innerClass -> innerClass.getName().equals("Builder"));
 
     if (builderClassDoesNotExist) {
-      PsiJavaFile psiFile = (PsiJavaFile) PsiFileFactory.getInstance(project).createFileFromText("Builder.java",
-          JavaFileType.INSTANCE,
-          getClassName(targetClass));
+      PsiJavaFile psiFile = (PsiJavaFile) openApiShim.getFileFactory(project)
+          .createFileFromText("Builder.java", JavaFileType.INSTANCE, getClassName(targetClass));
       PsiClass builderClass = psiFile.getClasses()[0];
-      annotateBuilderClass(project, targetClass, builderClass);
+      annotateBuilderClass(targetClass, builderClass);
       targetClass.add(builderClass);
     } else {
       Optional<PsiClass> builderClass = Arrays.stream(targetClass.getInnerClasses())
           .filter(innerClass -> innerClass.getName().equals("Builder"))
           .findFirst();
-      annotateBuilderClass(project, targetClass, builderClass.get());
-      info("Skipped", String.format("Did not generate Builder class %s.Builder as it already exists.",
+      annotateBuilderClass(targetClass, builderClass.get());
+      notifier.info("Skipped", String.format("Did not generate Builder class %s.Builder as it already exists.",
           targetClass.getQualifiedName()));
     }
   }
 
-  private void annotateBuilderClass(Project project, PsiClass targetClass, PsiClass builderClass) {
-    annotate(project, moduleOf(targetClass),
+  private void annotateBuilderClass(PsiClass targetClass, PsiClass builderClass) {
+    annotator.annotate(moduleOf(targetClass),
         builderClass,
         JsonIgnoreProperties.class,
         Collections.singletonMap("ignoreUnknown", "true"),
@@ -93,7 +92,7 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
   }
 
   private Module moduleOf(PsiClass targetClass) {
-    return ModuleUtil.findModuleForPsiElement(targetClass);
+    return openApiShim.getModuleOf(targetClass);
   }
 
   private String builderName(PsiClass psiClass) {
@@ -106,65 +105,5 @@ public class FreeBuilderHandler implements CodeInsightActionHandler {
     } else {
       return String.format("public static class Builder extends %s {}", builderName(psiClass));
     }
-  }
-
-  private void annotate(Project project, Module module, PsiClass targetClass,
-                        Class annotationClass, Map<String, String> attributes, PsiAnnotation anchor) {
-    if (detectClassInPath(project, module, annotationClass)) {
-      if (notAlreadyAnnotated(targetClass, annotationClass)) {
-        PsiModifierList modifierList = targetClass.getModifierList();
-        PsiAnnotation psiAnnotation = getElementFactory(project)
-            .createAnnotationFromText(buildAnnotationText(annotationClass, attributes), targetClass);
-        modifierList.addAfter(psiAnnotation, anchor);
-        JavaCodeStyleManager.getInstance(project).shortenClassReferences(targetClass);
-      } else {
-        info("Skipped", String.format("Class %s is already annotated with %s",
-            targetClass.getQualifiedName(), annotationClass.getCanonicalName()));
-      }
-    } else {
-      warn("Skipped", String.format("Skipping %s annotation as it is not found in classpath",
-          annotationClass.getCanonicalName()));
-    }
-  }
-
-  private void info(String title, String message) {
-    Notifications.Bus.notify(new Notification("FreeBuilder Plugin", title,
-        message, NotificationType.INFORMATION));
-  }
-
-  private void warn(String title, String message) {
-    Notifications.Bus.notify(new Notification("FreeBuilder Plugin", title,
-        message, NotificationType.WARNING));
-  }
-
-  private boolean notAlreadyAnnotated(PsiClass targetClass, Class annotationClass) {
-    return !possibleExistingAnnotation(targetClass, annotationClass).isPresent();
-  }
-
-  private boolean detectClassInPath(Project project, Module module, Class annotationClass) {
-    PsiClass jacksonAnnotationClass = JavaPsiFacade.getInstance(project)
-        .findClass(annotationClass.getCanonicalName(),
-            GlobalSearchScope.moduleRuntimeScope(module, false));
-    return null != jacksonAnnotationClass;
-  }
-
-  @NotNull
-  private String buildAnnotationText(Class annotationClass, Map<String, String> attributes) {
-    StringBuilder stringBuilder = new StringBuilder(String.format("@%s", annotationClass.getName()));
-    if (!attributes.isEmpty()) {
-      stringBuilder.append("(");
-      stringBuilder.append(attributes.entrySet().stream()
-          .map(entry -> String.format("%s = %s", entry.getKey(), entry.getValue()))
-          .collect(Collectors.joining(", ")));
-      stringBuilder.append(")");
-    }
-    return stringBuilder.toString();
-  }
-
-  private PsiElementFactory getElementFactory(Project project) {
-    if (elementFactory == null) {
-      elementFactory = JavaPsiFacade.getInstance(project).getElementFactory();
-    }
-    return elementFactory;
   }
 }
