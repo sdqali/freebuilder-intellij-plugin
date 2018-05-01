@@ -5,8 +5,7 @@
     <vendor email="sdqali@sdqali.in" url="https://sdqali.in/">Sadique Ali Koothumadan</vendor>
 
     <description><![CDATA[
-      This plugin allows users to apply FreeBuilder annotations and Builder classes<br>
-      on Java classes.<br>
+      This plugin allows users to apply FreeBuilder annotations and Builder classes on Java classes.<br>
     ]]></description>
 
     <change-notes><![CDATA[
