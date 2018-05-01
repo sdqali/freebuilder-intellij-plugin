@@ -2,10 +2,11 @@
     <id>in.sdqali.intellij.freebuilder-plugin</id>
     <name>FreeBuilder Plugin</name>
     <version>1.0.0</version>
-    <vendor email="sdqali@sdqali.in" url="https://sdqali.in/">dummy</vendor>
+    <vendor email="sdqali@sdqali.in" url="https://sdqali.in/">Sadique Ali Koothumadan</vendor>
 
     <description><![CDATA[
-      Sample plugin.<br>
+      This plugin allows users to apply FreeBuilder annotations and Builder classes<br>
+      on Java classes.<br>
     ]]></description>
 
     <change-notes><![CDATA[
