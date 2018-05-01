@@ -4,5 +4,6 @@ jdk:
 branches:
   only:
     - master
+    - /release-.*/
 script:
   - ./release.sh
