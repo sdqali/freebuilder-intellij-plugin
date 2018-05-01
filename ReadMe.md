@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/sdqali/freebuilder-intellij-plugin.svg?branch=master)](https://travis-ci.org/sdqali/freebuilder-intellij-plugin)
+
 # FreeBuilder IntelliJ Plugin
 
 This plugin makes it easy to apply [FreeBuilder]() annotations and create the necessary `Builder` classes on to a Java class.
