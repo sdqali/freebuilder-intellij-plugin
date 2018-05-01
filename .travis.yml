@@ -1,4 +1,9 @@
 language: java
 jdk:
 - oraclejdk8
-script: ./gradlew clean build
+branches:
+  only:
+    - master
+script:
+  - ./gradlew clean build
+  - if [ -n "$TRAVIS_TAG" ]; ./gradlew clean build publishPlugin; fi
