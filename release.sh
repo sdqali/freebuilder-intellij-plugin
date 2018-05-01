@@ -2,5 +2,5 @@
 
 if [ -n "$TRAVIS_TAG" ]
 then
-  ./gradlew clean build publishPlugin
+  ./gradlew publishPlugin
 fi
