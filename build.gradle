@@ -24,6 +24,12 @@ dependencies {
 intellij {
     version '2018.1'
 }
+
 patchPluginXml {
     changeNotes ""
+}
+
+publishPlugin {
+    username System.getenv('JETBRAINS_USERNAME')
+    password System.getenv('JETBRAINS_PASSWORD')
 }
