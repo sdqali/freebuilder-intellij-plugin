@@ -6,4 +6,4 @@ branches:
     - master
 script:
   - ./gradlew clean build
-  - if [ -n "$TRAVIS_TAG" ]; ./gradlew clean build publishPlugin; fi
+  - if [ -n "$TRAVIS_TAG" ]; then; ./gradlew clean build publishPlugin; fi
